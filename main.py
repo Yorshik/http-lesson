@@ -1,4 +1,3 @@
-import math
 import sys
 from io import BytesIO
 
@@ -42,44 +41,24 @@ if not response:
     print(response.status_code, response.reason)
     quit()
 js = response.json()
-
-organization = js['features'][0]
-org_longitude, org_lattitude = organization['geometry']['coordinates']
-s = round(
-    math.sqrt(
-        math.pow(
-            111 *
-            math.cos((toponym_longitude + org_longitude) / 2) *
-            abs(float(toponym_longitude) - org_longitude),
-            2
-        )
-        +
-        math.pow(
-            111 *
-            abs(float(toponym_lattitude) - org_lattitude),
-            2
-        )
-    )
-    , 2
-)
-point = f"{','.join(map(str, organization['geometry']['coordinates']))},org"
-out = f'''
-Адрес - {organization['properties']['description']}
-Название - {organization['properties']['name']}
-Часы работы - {organization['properties']['CompanyMetaData']['Hours']['text']}
-Расстояние от исходной точки - ~{s}км
-'''
-print(out)
-
+points = []
+for i in range(10):
+    org = js['features'][i]
+    p = f"{org['geometry']['coordinates'][0]},{org['geometry']['coordinates'][1]},"
+    if 'круглосуточно' in org['properties']['CompanyMetaData']['Hours']['text']:
+        p += f"pm2gnm{i + 1}"
+    elif '–' in org['properties']['CompanyMetaData']['Hours']['text']:
+        p += f'pm2lbm{i + 1}'
+    else:
+        p += f'pm2grm{i + 1}'
+    points.append(p)
 # map
 map_params = {
     "ll": ",".join([toponym_longitude, toponym_lattitude]),
     "l": "map",
-    "pt": f'{toponym_longitude},{toponym_lattitude},comma~{point}'
+    "pt": f'{toponym_longitude},{toponym_lattitude},comma~{"~".join(points)}'
 }
 response = requests.get(map_api_server, params=map_params)
 Image.open(
-    BytesIO(
-        response.content
-    )
+    BytesIO(response.content)
 ).show()
